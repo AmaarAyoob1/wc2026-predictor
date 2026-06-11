@@ -1,5 +1,5 @@
 <!-- World Cup 2026 — Monte Carlo Match Center -->
-<!-- Self-contained: real full-history Elo ratings baked in, simulation runs client-side. -->
+<!-- Self-contained: four-layer ratings (Elo + confederation + recent form + squad value) baked in; simulation runs client-side. -->
 <!-- Deploy: drop on GitHub Pages as index.html. No backend needed. -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -134,7 +134,7 @@
       <div class="crest">26</div>
       <div>
         <h1>World Cup 2026 <b>Match Center</b></h1>
-        <div class="sub">monte carlo · calibrated elo → poisson · real fifa bracket · 48 teams</div>
+        <div class="sub">monte carlo · elo + confederation + form + squad value · real fifa bracket · 48 teams</div>
       </div>
     </div>
     <div class="controls">
@@ -164,9 +164,9 @@
 </div>
 
 <script>
-/* ===== model data (exported from the Python engine: full-history Elo) ===== */
+/* ===== model data (exported from the Python engine: Elo + confederation + form + squad-value) ===== */
 const DATA = {"groups":{"A":["Mexico","South Korea","Czech Republic","South Africa"],"B":["Switzerland","Canada","Bosnia and Herzegovina","Qatar"],"C":["United States","Paraguay","Australia","Turkey"],"D":["Brazil","Morocco","Scotland","Haiti"],"E":["Germany","Ecuador","Ivory Coast","Curaçao"],"F":["Netherlands","Japan","Sweden","Tunisia"],"G":["Belgium","Egypt","Iran","New Zealand"],"H":["Spain","Uruguay","Saudi Arabia","Cape Verde"],"I":["France","Senegal","Norway","Iraq"],"J":["Argentina","Austria","Algeria","Jordan"],"K":["Portugal","Colombia","Uzbekistan","DR Congo"],"L":["England","Croatia","Ghana","Panama"]},
-"ratings":{"Mexico":1971.3,"South Korea":1890.9,"Czech Republic":1890.8,"South Africa":1736.0,"Switzerland":2040.0,"Canada":1892.5,"Bosnia and Herzegovina":1741.1,"Qatar":1590.6,"United States":1844.6,"Paraguay":1967.0,"Australia":1911.7,"Turkey":2053.1,"Brazil":2115.8,"Morocco":2061.3,"Scotland":1935.5,"Haiti":1686.2,"Germany":2097.9,"Ecuador":2076.3,"Ivory Coast":1883.6,"Curaçao":1595.1,"Netherlands":2098.6,"Japan":2006.2,"Sweden":1858.6,"Tunisia":1799.9,"Belgium":2037.4,"Egypt":1874.8,"Iran":1905.4,"New Zealand":1524.1,"Spain":2296.6,"Uruguay":2023.6,"Saudi Arabia":1707.3,"Cape Verde":1715.6,"France":2204.7,"Senegal":1972.5,"Norway":2059.9,"Iraq":1747.7,"Argentina":2237.9,"Austria":1976.6,"Algeria":1937.0,"Jordan":1782.5,"Portugal":2122.0,"Colombia":2113.1,"Uzbekistan":1834.0,"DR Congo":1825.6,"England":2169.5,"Croatia":2051.6,"Ghana":1689.9,"Panama":1837.8},
+"ratings":{"Mexico":1960.9,"South Korea":1885.2,"Czech Republic":1901.3,"South Africa":1678.1,"Switzerland":2037.1,"Canada":1913.5,"Bosnia and Herzegovina":1744.4,"Qatar":1472.9,"United States":1855.0,"Paraguay":1983.8,"Australia":1882.8,"Turkey":2117.8,"Brazil":2157.8,"Morocco":2104.8,"Scotland":1963.6,"Haiti":1618.5,"Germany":2148.8,"Ecuador":2117.4,"Ivory Coast":1904.3,"Curaçao":1542.2,"Netherlands":2128.2,"Japan":2033.5,"Sweden":1862.2,"Tunisia":1751.1,"Belgium":2044.6,"Egypt":1854.3,"Iran":1853.2,"New Zealand":1422.0,"Spain":2336.6,"Uruguay":2029.1,"Saudi Arabia":1628.1,"Cape Verde":1678.2,"France":2275.5,"Senegal":1993.5,"Norway":2133.3,"Iraq":1677.4,"Argentina":2268.9,"Austria":1980.3,"Algeria":1966.2,"Jordan":1703.4,"Portugal":2187.3,"Colombia":2116.5,"Uzbekistan":1777.8,"DR Congo":1827.1,"England":2240.1,"Croatia":2084.0,"Ghana":1664.1,"Panama":1757.7},
 "base":1.36,"beta":0.45};
 const R=DATA.ratings, BASE=DATA.base, BETA=DATA.beta, G=DATA.groups;
 
