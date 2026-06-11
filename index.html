@@ -1,0 +1,311 @@
+<!-- World Cup 2026 — Monte Carlo Match Center -->
+<!-- Self-contained: real full-history Elo ratings baked in, simulation runs client-side. -->
+<!-- Deploy: drop on GitHub Pages as index.html. No backend needed. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>World Cup 2026 — Monte Carlo Match Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0A0E1A; --panel:#111726; --panel2:#0E1320; --line:#222B40;
+    --text:#E9EDF6; --muted:#828DA6; --dim:#56607A;
+    --flood:#FF7A1A; --flood2:#FFC04D; --advance:#37C97A; --loss:#37425C;
+    --shadow:0 18px 50px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1200px 500px at 50% -180px, rgba(255,122,26,.16), transparent 60%),
+      radial-gradient(900px 600px at 85% 10%, rgba(255,192,77,.06), transparent 55%),
+      var(--ink);
+    color:var(--text);
+    font-family:"Inter",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+
+  /* ---- scoreboard header ---- */
+  .board{
+    border:1px solid var(--line);border-radius:16px;
+    background:linear-gradient(180deg,#121a2c,#0d1320);
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  .board-top{display:flex;align-items:center;gap:16px;padding:20px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .crest{
+    width:46px;height:46px;border-radius:11px;flex:none;
+    background:linear-gradient(145deg,var(--flood),#c14e00);
+    display:grid;place-items:center;font-family:"Space Mono";font-weight:700;color:#1a0e02;
+    box-shadow:0 0 22px rgba(255,122,26,.5);font-size:13px;letter-spacing:-1px;
+  }
+  h1{
+    font-family:"Saira Condensed";font-weight:800;letter-spacing:.5px;
+    font-size:clamp(22px,3.4vw,34px);line-height:.95;margin:0;text-transform:uppercase;
+  }
+  h1 b{color:var(--flood)}
+  .sub{font-size:12.5px;color:var(--muted);margin-top:4px;font-family:"Space Mono"}
+  .spacer{flex:1 1 60px}
+
+  .controls{display:flex;gap:12px;align-items:center;padding:18px 24px;flex-wrap:wrap}
+  button{
+    font-family:"Saira Condensed";font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+    font-size:14.5px;cursor:pointer;border-radius:10px;padding:13px 20px;border:1px solid transparent;
+    transition:transform .08s ease,box-shadow .2s ease,background .2s ease;
+  }
+  button:active{transform:translateY(1px)}
+  .btn-primary{background:var(--flood);color:#160a01;box-shadow:0 0 0 rgba(255,122,26,.0)}
+  .btn-primary:hover{box-shadow:0 0 26px rgba(255,122,26,.45)}
+  .btn-ghost{background:#161d2e;color:var(--text);border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--flood);color:var(--flood2)}
+  .status{font-family:"Space Mono";font-size:12px;color:var(--muted);margin-left:auto;text-align:right}
+  .status b{color:var(--flood2)}
+  .bar{height:4px;background:#1b2335;border-radius:99px;overflow:hidden;margin-top:6px;width:160px;margin-left:auto}
+  .bar > i{display:block;height:100%;width:0;background:var(--flood);transition:width .1s linear}
+
+  .note{font-family:"Space Mono";font-size:11px;color:var(--dim);padding:0 24px 18px}
+
+  /* ---- section headers ---- */
+  .sec{margin-top:34px}
+  .sec-h{display:flex;align-items:baseline;gap:12px;margin:0 4px 14px}
+  .sec-h h2{font-family:"Saira Condensed";font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:18px;margin:0}
+  .sec-h span{font-family:"Space Mono";font-size:11px;color:var(--dim)}
+  .sec-h .rule{flex:1;height:1px;background:var(--line)}
+
+  /* ---- group cards ---- */
+  .groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px}
+  .gcard{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px 14px}
+  .gcard h3{font-family:"Saira Condensed";font-weight:700;font-size:14px;letter-spacing:1.5px;color:var(--muted);margin:0 0 9px;text-transform:uppercase}
+  .row{display:grid;grid-template-columns:14px 1fr 30px 30px;align-items:center;gap:7px;padding:5px 0;font-size:13.5px;border-top:1px solid #19223400}
+  .row .pos{width:4px;height:18px;border-radius:3px;background:transparent}
+  .row.adv .pos{background:var(--advance);box-shadow:0 0 9px rgba(55,201,122,.55)}
+  .row.adv3 .pos{background:#1f6e44}
+  .row .tm{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row.out .tm{color:var(--dim)}
+  .row .n{font-family:"Space Mono";font-size:12px;text-align:right;color:var(--muted)}
+  .row .pts{font-family:"Space Mono";font-size:13px;text-align:right;font-weight:700;color:var(--text)}
+  .ghead{display:grid;grid-template-columns:14px 1fr 30px 30px;gap:7px;font-family:"Space Mono";font-size:9.5px;color:var(--dim);letter-spacing:.5px;padding-bottom:2px;text-transform:uppercase}
+  .ghead span:nth-child(n+3){text-align:right}
+
+  /* ---- bracket ---- */
+  .bracket-scroll{overflow-x:auto;padding-bottom:10px}
+  .bracket{display:flex;gap:18px;min-width:max-content;padding:4px}
+  .col{display:flex;flex-direction:column;justify-content:space-around;min-width:152px;gap:8px}
+  .col-lbl{font-family:"Space Mono";font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;text-align:center;margin-bottom:2px}
+  .tie{background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .slot{display:grid;grid-template-columns:1fr 22px;align-items:center;gap:6px;padding:7px 9px;font-size:12.5px}
+  .slot+.slot{border-top:1px solid var(--line)}
+  .slot .nm{font-family:"Saira Condensed";font-weight:600;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+  .slot .sc{font-family:"Space Mono";font-size:12px;text-align:right;color:var(--dim)}
+  .slot.win .nm{color:var(--text)}
+  .slot.win .sc{color:var(--flood2)}
+  .tie.champ-path{border-color:rgba(255,122,26,.4)}
+  .champ-box{
+    align-self:center;border:1px solid var(--flood);border-radius:11px;padding:14px 16px;text-align:center;
+    background:linear-gradient(180deg,rgba(255,122,26,.16),rgba(255,122,26,.04));
+    box-shadow:0 0 30px rgba(255,122,26,.35);animation:glow 2.4s ease-in-out infinite}
+  @keyframes glow{50%{box-shadow:0 0 46px rgba(255,122,26,.55)}}
+  .champ-box .k{font-family:"Space Mono";font-size:10px;color:var(--flood2);letter-spacing:2px;text-transform:uppercase}
+  .champ-box .v{font-family:"Saira Condensed";font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+
+  /* ---- probability board ---- */
+  .prob{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px 18px}
+  .prow{display:grid;grid-template-columns:22px 1fr 64px;align-items:center;gap:12px;padding:7px 0}
+  .prow .rk{font-family:"Space Mono";font-size:12px;color:var(--dim);text-align:right}
+  .ptrack{position:relative;height:24px;background:#0d1422;border-radius:6px;overflow:hidden}
+  .pfill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#c14e00,var(--flood));border-radius:6px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+  .pname{position:absolute;left:10px;top:0;bottom:0;display:flex;align-items:center;font-family:"Saira Condensed";font-weight:600;font-size:13.5px;letter-spacing:.3px;z-index:2;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  .pval{font-family:"Space Mono";font-weight:700;font-size:13px;text-align:right;color:var(--flood2)}
+  .empty{font-family:"Space Mono";font-size:12.5px;color:var(--dim);text-align:center;padding:30px}
+
+  @media (max-width:560px){
+    .status,.bar{margin-left:0;text-align:left}
+    .controls{gap:9px}
+    button{flex:1 1 auto}
+  }
+  @media (prefers-reduced-motion:reduce){.champ-box{animation:none}.pfill{transition:none}}
+</style>
+
+<div class="wrap">
+  <div class="board">
+    <div class="board-top">
+      <div class="crest">26</div>
+      <div>
+        <h1>World Cup 2026 <b>Match Center</b></h1>
+        <div class="sub">monte carlo · calibrated elo → poisson · real fifa bracket · 48 teams</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn-primary" id="one">▶ Simulate one tournament</button>
+      <button class="btn-ghost" id="mc">◇ Run 10,000 sims</button>
+      <div class="status" id="status">ready — press simulate
+        <div class="bar"><i id="prog"></i></div>
+      </div>
+    </div>
+    <div class="note" id="note">Each click re-rolls fresh randomness. This is the exploratory sim; the committed pre-kickoff prediction is the fixed seed-42 run.</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><h2>Group stage</h2><span id="gsub">12 groups · top 2 + 8 best thirds advance</span><div class="rule"></div></div>
+    <div class="groups" id="groups"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><h2>Knockout</h2><span>round of 32 → final · champion path lit</span><div class="rule"></div></div>
+    <div class="bracket-scroll"><div class="bracket" id="bracket"><div class="empty">Run a single tournament to draw the bracket.</div></div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><h2>Win probability</h2><span id="psub">aggregate over many simulations</span><div class="rule"></div></div>
+    <div class="prob" id="prob"><div class="empty">Run 10,000 sims to build the probability board.</div></div>
+  </div>
+</div>
+
+<script>
+/* ===== model data (exported from the Python engine: full-history Elo) ===== */
+const DATA = {"groups":{"A":["Mexico","South Korea","Czech Republic","South Africa"],"B":["Switzerland","Canada","Bosnia and Herzegovina","Qatar"],"C":["United States","Paraguay","Australia","Turkey"],"D":["Brazil","Morocco","Scotland","Haiti"],"E":["Germany","Ecuador","Ivory Coast","Curaçao"],"F":["Netherlands","Japan","Sweden","Tunisia"],"G":["Belgium","Egypt","Iran","New Zealand"],"H":["Spain","Uruguay","Saudi Arabia","Cape Verde"],"I":["France","Senegal","Norway","Iraq"],"J":["Argentina","Austria","Algeria","Jordan"],"K":["Portugal","Colombia","Uzbekistan","DR Congo"],"L":["England","Croatia","Ghana","Panama"]},
+"ratings":{"Mexico":1971.3,"South Korea":1890.9,"Czech Republic":1890.8,"South Africa":1736.0,"Switzerland":2040.0,"Canada":1892.5,"Bosnia and Herzegovina":1741.1,"Qatar":1590.6,"United States":1844.6,"Paraguay":1967.0,"Australia":1911.7,"Turkey":2053.1,"Brazil":2115.8,"Morocco":2061.3,"Scotland":1935.5,"Haiti":1686.2,"Germany":2097.9,"Ecuador":2076.3,"Ivory Coast":1883.6,"Curaçao":1595.1,"Netherlands":2098.6,"Japan":2006.2,"Sweden":1858.6,"Tunisia":1799.9,"Belgium":2037.4,"Egypt":1874.8,"Iran":1905.4,"New Zealand":1524.1,"Spain":2296.6,"Uruguay":2023.6,"Saudi Arabia":1707.3,"Cape Verde":1715.6,"France":2204.7,"Senegal":1972.5,"Norway":2059.9,"Iraq":1747.7,"Argentina":2237.9,"Austria":1976.6,"Algeria":1937.0,"Jordan":1782.5,"Portugal":2122.0,"Colombia":2113.1,"Uzbekistan":1834.0,"DR Congo":1825.6,"England":2169.5,"Croatia":2051.6,"Ghana":1689.9,"Panama":1837.8},
+"base":1.36,"beta":0.45};
+const R=DATA.ratings, BASE=DATA.base, BETA=DATA.beta, G=DATA.groups;
+
+/* ===== sim primitives ===== */
+function poisson(l){let L=Math.exp(-l),k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}
+function match(a,b){const d=(R[a]-R[b])/400;return [poisson(BASE*Math.exp(BETA*d)),poisson(BASE*Math.exp(-BETA*d))];}
+function ko(a,b){const[x,y]=match(a,b);if(x>y)return{w:a,a,b,x,y};if(y>x)return{w:b,a,b,x,y};
+  const pa=1/(1+Math.pow(10,-(R[a]-R[b])/400));const w=Math.random()<pa?a:b;return{w,a,b,x,y,pens:true};}
+
+function group(teams){
+  const pts={},gf={},ga={};teams.forEach(t=>{pts[t]=0;gf[t]=0;ga[t]=0;});
+  for(let i=0;i<4;i++)for(let j=i+1;j<4;j++){
+    const a=teams[i],b=teams[j],[x,y]=match(a,b);
+    gf[a]+=x;ga[a]+=y;gf[b]+=y;ga[b]+=x;
+    if(x>y)pts[a]+=3;else if(y>x)pts[b]+=3;else{pts[a]++;pts[b]++;}
+  }
+  const rank=[...teams].sort((p,q)=>pts[q]-pts[p]||(gf[q]-ga[q])-(gf[p]-ga[p])||gf[q]-gf[p]||Math.random()-.5);
+  const stat={};rank.forEach(t=>stat[t]={pts:pts[t],gd:gf[t]-ga[t],gf:gf[t],ga:ga[t]});
+  return {rank,stat};
+}
+
+/* ===== real FIFA bracket (official regulations) ===== */
+// winner-vs-third slots: matchId -> [winner group, allowed third-place pool]
+const THIRD_SLOTS={M74:['E','ABCDF'],M77:['I','CDFGH'],M79:['A','CEFHI'],M80:['L','EHIJK'],
+  M81:['D','BEFIJ'],M82:['G','AEHIJ'],M85:['B','EFGIJ'],M87:['K','DEIJL']};
+// the other 8 R32 ties (no third place): [pos1,grp1,pos2,grp2]
+const FIXED_R32={M73:['RU','A','RU','B'],M75:['W','F','RU','C'],M76:['W','C','RU','F'],
+  M78:['RU','E','RU','I'],M83:['RU','K','RU','L'],M84:['W','H','RU','J'],
+  M86:['W','J','RU','H'],M88:['RU','D','RU','G']};
+const FEED={R16:[['M89','M74','M77'],['M90','M73','M75'],['M91','M76','M78'],['M92','M79','M80'],
+  ['M93','M83','M84'],['M94','M81','M82'],['M95','M86','M88'],['M96','M85','M87']],
+  QF:[['M97','M89','M90'],['M98','M93','M94'],['M99','M91','M92'],['M100','M95','M96']],
+  SF:[['M101','M97','M98'],['M102','M99','M100']]};
+const R32_IDS=['M73','M74','M75','M76','M77','M78','M79','M80','M81','M82','M83','M84','M85','M86','M87','M88'];
+
+function assignThirds(groups,teamOf){           // bijection: group -> slot whose pool allows it
+  const slots=Object.entries(THIRD_SLOTS);
+  const order=[...groups].sort((a,b)=>
+    slots.filter(([,[,p]])=>p.includes(a)).length - slots.filter(([,[,p]])=>p.includes(b)).length);
+  const assign={};
+  const bt=i=>{ if(i===order.length)return true; const g=order[i];
+    for(const [m,[,pool]] of slots){ if(!(m in assign)&&pool.includes(g)){ assign[m]=g; if(bt(i+1))return true; delete assign[m]; } }
+    return false; };
+  bt(0);
+  const out={}; for(const m in assign) out[m]=teamOf[assign[m]]; return out;
+}
+
+function tournament(record){
+  const groups={},W={},RU={},thirdsAll=[];
+  for(const k in G){const r=group(G[k]);groups[k]=r;
+    W[k]=r.rank[0];RU[k]=r.rank[1];thirdsAll.push({g:k,t:r.rank[2],s:r.stat[r.rank[2]]});}
+  thirdsAll.sort((p,q)=>q.s.pts-p.s.pts||q.s.gd-p.s.gd||q.s.gf-p.s.gf||Math.random()-.5);
+  const best=thirdsAll.slice(0,8);
+  const advThirds=new Set(best.map(z=>z.t));
+  const thirdFor=assignThirds(best.map(z=>z.g),Object.fromEntries(best.map(z=>[z.g,z.t])));
+  const res={};
+  for(const m in THIRD_SLOTS){const [wg]=THIRD_SLOTS[m];res[m]=ko(W[wg],thirdFor[m]);}
+  for(const m in FIXED_R32){const [p1,g1,p2,g2]=FIXED_R32[m];
+    res[m]=ko(p1==='W'?W[g1]:RU[g1], p2==='W'?W[g2]:RU[g2]);}
+  for(const stage of ['R16','QF','SF']) for(const [m,x,y] of FEED[stage]) res[m]=ko(res[x].w,res[y].w);
+  res.M104=ko(res.M101.w,res.M102.w);
+  const champ=res.M104.w;
+  if(record) return {groups,advThirds,res,champ};
+  return champ;
+}
+
+/* ===== rendering ===== */
+function renderGroups(groups,advThirds){
+  const el=document.getElementById('groups');el.innerHTML='';
+  for(const k in G){
+    const {rank,stat}=groups[k];
+    const card=document.createElement('div');card.className='gcard';
+    let h=`<h3>Group ${k}</h3><div class="ghead"><span></span><span>Team</span><span>GD</span><span>Pts</span></div>`;
+    rank.forEach((t,i)=>{
+      let cls='out';if(i<2)cls='adv';else if(i===2&&advThirds.has(t))cls='adv3';
+      const gd=stat[t].gd;
+      h+=`<div class="row ${cls}"><span class="pos"></span><span class="tm">${t}</span><span class="n">${gd>=0?'+':''}${gd}</span><span class="pts">${stat[t].pts}</span></div>`;
+    });
+    card.innerHTML=h;el.appendChild(card);
+  }
+}
+function tieEl(m,champ){
+  const tie=document.createElement('div');tie.className='tie'+(m.w===champ?' champ-path':'');
+  tie.innerHTML=
+    `<div class="slot ${m.w===m.a?'win':''}"><span class="nm">${m.a}</span><span class="sc">${m.x}</span></div>`+
+    `<div class="slot ${m.w===m.b?'win':''}"><span class="nm">${m.b}</span><span class="sc">${m.y}${m.pens?'*':''}</span></div>`;
+  return tie;
+}
+function colEl(label,ids,res,champ){
+  const col=document.createElement('div');col.className='col';
+  col.innerHTML=`<div class="col-lbl">${label}</div>`;
+  ids.forEach(id=>col.appendChild(tieEl(res[id],champ)));
+  return col;
+}
+function renderBracket(res,champ){
+  const el=document.getElementById('bracket');el.innerHTML='';
+  el.appendChild(colEl('Round of 32',R32_IDS,res,champ));
+  el.appendChild(colEl('Round of 16',FEED.R16.map(r=>r[0]),res,champ));
+  el.appendChild(colEl('Quarter-final',FEED.QF.map(r=>r[0]),res,champ));
+  el.appendChild(colEl('Semi-final',FEED.SF.map(r=>r[0]),res,champ));
+  el.appendChild(colEl('Final',['M104'],res,champ));
+  const last=document.createElement('div');last.className='col';
+  last.innerHTML=`<div class="col-lbl">Champion</div><div class="champ-box"><div class="k">★ Winner ★</div><div class="v">${champ}</div></div>`;
+  el.appendChild(last);
+}
+
+/* ===== controls ===== */
+document.getElementById('one').onclick=()=>{
+  const r=tournament(true);
+  renderGroups(r.groups,r.advThirds);
+  renderBracket(r.res,r.champ);
+  document.getElementById('status').innerHTML=`one run · champion <b>${r.champ}</b><div class="bar"><i id="prog"></i></div>`;
+};
+
+document.getElementById('mc').onclick=()=>{
+  const N=10000,counts={},btn=document.getElementById('mc');
+  btn.disabled=true;let done=0;
+  const prog=document.getElementById('prog');
+  const step=()=>{
+    const chunk=500;
+    for(let i=0;i<chunk&&done<N;i++,done++){const c=tournament(false);counts[c]=(counts[c]||0)+1;}
+    if(prog)prog.style.width=(100*done/N)+'%';
+    document.getElementById('status').innerHTML=`simulating… <b>${done.toLocaleString()}</b> / ${N.toLocaleString()}<div class="bar"><i id="prog" style="width:${100*done/N}%"></i></div>`;
+    if(done<N){requestAnimationFrame(step);}
+    else{btn.disabled=false;renderProb(counts,N);
+      document.getElementById('status').innerHTML=`${N.toLocaleString()} sims complete<div class="bar"><i id="prog" style="width:100%"></i></div>`;}
+  };
+  requestAnimationFrame(step);
+};
+
+function renderProb(counts,N){
+  const el=document.getElementById('prob');
+  const arr=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,16);
+  const max=arr[0][1];
+  el.innerHTML=arr.map(([t,c],i)=>{
+    const pct=100*c/N,w=100*c/max;
+    return `<div class="prow"><span class="rk">${i+1}</span>
+      <div class="ptrack"><div class="pfill" style="width:${w}%"></div><span class="pname">${t}</span></div>
+      <span class="pval">${pct.toFixed(1)}%</span></div>`;
+  }).join('');
+}
+</script>
