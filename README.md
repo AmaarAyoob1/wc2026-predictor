@@ -1,174 +1,78 @@
-# DocQuery: RAG-Powered Document Q&A with Citations
+# World Cup 2026 Monte Carlo Predictor
 
-<p align="center">
-  <img src="docs/demo.gif" alt="Demo" width="800"/>
-</p>
+A from-scratch probabilistic model for the 2026 FIFA World Cup. It rates all 48 teams from 150 years of international results, simulates the real tournament bracket tens of thousands of times, and reports each team's probability of lifting the trophy. The rating engine is validated out-of-sample: it predicts held-out international matches at 60.6% accuracy, 15% better on log-loss than a base-rate baseline. Predictions were locked on June 10, 2026, before the opening match.
 
-**Upload any PDF. Ask questions in plain English. Get cited answers.**
+**[Live dashboard](#)** (GitHub Pages): simulate one tournament and watch the bracket resolve, or run 10,000 simulations for the full probability board.
 
-A Retrieval-Augmented Generation (RAG) system that lets you chat with your documents — research papers, financial reports, legal contracts, or textbooks — and get accurate, cited answers grounded in the actual text.
+## Headline result (locked pre-kickoff)
 
----
+| Team | Win probability |
+|------|----------------|
+| Spain | 19.6% |
+| Argentina | 12.7% |
+| France | 10.7% |
+| England | 7.8% |
+| Brazil | 4.8% |
+| Portugal | 4.4% |
+| Colombia | 4.2% |
+| Netherlands | 4.2% |
+| Germany | 3.9% |
+| Ecuador | 3.4% |
 
-## Why This Project Exists
+Spain enters as a clear but not dominant favorite. The 19.6% reflects a simple truth the simulation makes concrete: even the strongest team must win five straight knockout matches, and it loses roughly a third of each, so the most likely single outcome is still that the favorite does not win.
 
-LLMs are powerful but they hallucinate. When you ask ChatGPT about a specific document, it might make up facts that sound right but aren't in the text. RAG solves this by forcing the model to retrieve relevant passages first, then generate answers based only on what it found. Every answer in DocQuery includes page-level citations so you can verify.
+## How it works
 
-This isn't a wrapper around an API — it's a full RAG pipeline with chunking strategies, embedding models, vector search, reranking, and citation tracking built from scratch.
+The model has three layers, each addressing a specific weakness of the one before.
 
-## Key Features
+**1. Elo ratings.** Every international match since 1872 (about 49,000 games) updates a running strength rating per team, with the update size scaled by match importance (World Cup highest, then continental championships, then qualifiers and Nations League, then friendlies) and by goal margin. Elo is used because it is, by construction, an opponent-adjusted record of recent form: a team's rating already encodes who it beat and how recently.
 
-- **Multi-document support** — upload multiple PDFs and query across all of them
-- **Citation tracking** — every answer shows which document and page it came from
-- **Hybrid search** — combines semantic (vector) search with keyword (BM25) search for better retrieval
-- **Configurable chunking** — supports fixed-size, sentence-based, and recursive chunking strategies
-- **Conversation memory** — follow-up questions understand context from previous Q&A
-- **Source highlighting** — see the exact passages used to generate each answer
+**2. Confederation calibration.** Raw Elo systematically misrates teams across confederations, because a team can accumulate rating by beating weak regional opponents and rarely get tested outside its confederation. Measured on inter-confederation matches since 2014, UEFA, CONMEBOL, and CAF teams beat their Elo expectation when they leave home, while AFC, CONCACAF, and OFC teams fall short. The model fits one Elo offset per confederation so those inter-confederation residuals go to zero. This correction is derived entirely from the match data, with no external inputs.
 
-## Quick Start
+**3. Monte Carlo tournament simulation.** Calibrated ratings drive an independent-Poisson goals model (rating gap to expected goals, then sampled scorelines). The simulation uses the actual FIFA bracket: the 16 official Round-of-32 slot definitions, the best-eight-third-place qualification rule, and the real feed-forward tree through to the final. Running it tens of thousands of times turns per-match probabilities into tournament outcomes.
 
-```bash
-# Clone the repo
-git clone https://github.com/YOUR_USERNAME/rag-document-qa.git
-cd rag-document-qa
+## Validation
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate
+The model is tested out-of-sample with a prequential (walk-forward) backtest: marching through every international match in date order, it predicts each held-out match before seeing the result, then scores it. No result is ever used to predict itself.
 
-# Install dependencies
-pip install -r requirements.txt
+Over 3,594 held-out matches since January 2023:
 
-# Set up your API key (for the LLM — embeddings run locally)
-export OPENAI_API_KEY="your-key-here"
-# OR for fully local: no API key needed (uses Ollama)
+| | Log-loss | Accuracy |
+|---|---|---|
+| Model | 0.894 | 60.6% |
+| Base-rate baseline | 1.054 | 47.2% |
 
-# Launch the app
-streamlit run streamlit_app/app.py
-```
+The model is 15% better on log-loss and 13 points more accurate than a no-skill predictor, on a hard three-way problem (win/draw/loss) it never trained on. The confederation calibration was fit on pre-2023 data only and tested on the holdout: on the inter-confederation matches it actually affects (the kind a World Cup is made of), it improves log-loss by 3.5%, confirming it is a genuine correction rather than overfitting.
 
-## Architecture
+Reproduce with `python wc2026_backtest.py`.
 
-```
-                    ┌─────────────────────────────────────────────┐
-                    │              INGESTION PIPELINE              │
-                    │                                             │
-  PDF Upload ──────▶│  Extract ──▶ Chunk ──▶ Embed ──▶ Store    │
-                    │  (PyMuPDF)  (Recursive) (HuggingFace) (Chroma) │
-                    └─────────────────────────────────────────────┘
-                                                    │
-                                                    ▼
-                    ┌─────────────────────────────────────────────┐
-                    │               QUERY PIPELINE                │
-                    │                                             │
-  User Question ───▶│  Embed ──▶ Retrieve ──▶ Rerank ──▶ Generate │
-                    │  Query    (Hybrid)    (Cross-Enc) (LLM+Cite)│
-                    └─────────────────────────────────────────────┘
-                                                    │
-                                                    ▼
-                                          Cited Answer + Sources
-```
-
-## How It Works
-
-### 1. Document Ingestion
-- PDFs are parsed with PyMuPDF, preserving page numbers and structure
-- Text is split into overlapping chunks using recursive character splitting
-- Each chunk is embedded using a local HuggingFace model (`all-MiniLM-L6-v2`)
-- Embeddings are stored in ChromaDB with metadata (doc name, page number, chunk index)
-
-### 2. Retrieval (Hybrid Search)
-- User query is embedded using the same model
-- **Semantic search**: finds chunks with similar meaning via cosine similarity in ChromaDB
-- **Keyword search**: BM25 ranking catches exact matches that semantic search might miss
-- Results from both are merged using Reciprocal Rank Fusion (RRF)
-
-### 3. Reranking
-- Top candidates are reranked using a cross-encoder model for more precise relevance scoring
-- This step significantly improves answer quality over raw retrieval
-
-### 4. Answer Generation
-- Retrieved passages are formatted with source metadata
-- LLM generates an answer constrained to the provided context
-- Citation markers link each claim to specific source passages
-- If the answer isn't in the documents, the model says so instead of hallucinating
-
-## Project Structure
-
-```
-rag-document-qa/
-├── README.md
-├── requirements.txt
-├── .gitignore
-├── LICENSE
-├── configs/
-│   └── config.yaml           # All configurable parameters
-├── data/
-│   └── README.md              # Sample documents for testing
-├── src/
-│   ├── __init__.py
-│   ├── document_loader.py     # PDF parsing and text extraction
-│   ├── chunker.py             # Text chunking strategies
-│   ├── embeddings.py          # Embedding model wrapper
-│   ├── vector_store.py        # ChromaDB operations
-│   ├── retriever.py           # Hybrid retrieval + reranking
-│   ├── generator.py           # LLM answer generation with citations
-│   └── rag_pipeline.py        # End-to-end orchestration
-├── streamlit_app/
-│   └── app.py                 # Interactive web interface
-├── tests/
-│   ├── test_chunker.py
-│   ├── test_retriever.py
-│   └── test_pipeline.py
-└── docs/
-    └── architecture.md
-```
-
-## Configuration
-
-All parameters are in `configs/config.yaml`:
-
-```yaml
-chunking:
-  strategy: "recursive"     # Options: fixed, sentence, recursive
-  chunk_size: 512
-  chunk_overlap: 50
-
-retrieval:
-  top_k: 10                 # Candidates from vector search
-  rerank_top_k: 5           # Final passages after reranking
-  use_hybrid: true           # Enable BM25 + semantic fusion
-
-generation:
-  model: "gpt-4o-mini"      # Or "ollama/llama3" for local
-  temperature: 0.1
-  max_tokens: 1000
-```
-
-## Running Fully Local (No API Key)
-
-DocQuery supports fully local operation using Ollama:
+## Run it
 
 ```bash
-# Install Ollama: https://ollama.ai
-ollama pull llama3
-
-# Update config
-# In configs/config.yaml, set: model: "ollama/llama3"
-
-# Run — no API key needed
-streamlit run streamlit_app/app.py
+pip install pandas numpy
+curl -sL "https://raw.githubusercontent.com/martj42/international_results/master/results.csv" -o results.csv
+python wc2026_bracket.py     # build ratings, simulate, print the win-probability board
+python wc2026_backtest.py    # reproduce the out-of-sample validation
 ```
 
-## What I'd Improve
+The dashboard (`index.html`) is a single self-contained file with the ratings baked in. Open it locally or host it on GitHub Pages, no backend required.
 
-- Add support for tables and images in PDFs (currently text-only)
-- Implement query decomposition for complex multi-part questions
-- Add evaluation benchmarks using RAGAS framework
-- Build a feedback loop where users can rate answers to improve retrieval
-- Add support for Word docs, HTML, and markdown in addition to PDFs
-- Implement streaming responses for better UX on long answers
+## Honest limitations
 
-## License
+This is a v1. The ratings are validated (see above), but the model has known simplifications:
 
-MIT License — see [LICENSE](LICENSE) for details.
+- **The goals model is independent Poisson.** It does not yet use a Dixon-Coles correction for the correlation between low scorelines, and the rating-to-goals sensitivity parameter is set by hand, not fit.
+- **Validation is at the match level, not the tournament level.** The match backtest is strong, but the model has not yet been retrodicted against full past tournaments (predict the 2022 World Cup bracket, etc.).
+- **Third-place slot assignment** respects each Round-of-32 slot's allowed-group pool via constrained matching, rather than reproducing FIFA's exact 495-row Annex C lookup. The effect on aggregate probabilities is negligible, but it is a simplification.
+- **No squad, injury, or in-tournament information.** Ratings are frozen at the pre-kickoff snapshot.
+
+## Roadmap
+
+- Tournament-level retrodiction (predict the 2022 World Cup, Euro 2024, Copa América 2024 and score the bracket)
+- Dixon-Coles goals model as a second engine, ensembled with the current one
+- Fit the rating-to-goals sensitivity rather than setting it by hand
+- Live Bayesian updating of ratings as group-stage results come in
+
+## Data
+
+International results from [martj42/international_results](https://github.com/martj42/international_results), 1872 to present.
